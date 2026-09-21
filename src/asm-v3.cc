@@ -58,7 +58,12 @@ public:
     virtual bool hasLabel(const std::string& name) const = 0;
 };
 
-// ─── Generic Assembler Engine ───────────────────────────────────────────────
+/* ───────────────────────────────────────────────
+ *
+ * Generic Assembler Engine
+ *
+ * ───────────────────────────────────────────────
+ */
 
 class Assembler
 {
@@ -73,20 +78,62 @@ public:
         m_outputPath = path;
     }
 
-    void assemble(const std::string& source)
+void runPass(const std::string& source, bool collectLabelsOnly)
+{
+    std::istringstream stream(source);
+    std::string line;
+
+    while (std::getline(stream, line))
     {
-        std::istringstream stream(source);
-        std::string line;
-        int lineNum = 0;
+        // ... same parsing as before ...
 
-        while (std::getline(stream, line))
+        if (collectLabelsOnly)
         {
-            lineNum++;
-            processLine(line, lineNum);
+            // Just advance PC by the instruction size, don't store bytes
+            // and don't resolve labels (they may not be defined yet)
+            // You need the instruction set to report size without resolving
         }
-
-        writeOutput();
+        else
+        {
+            // Full assembly: emit bytes, resolve labels
+        }
     }
+}
+
+
+
+void assemble(const std::string& source)
+{
+    // Pass 1: collect all labels
+    m_iset.setPC(0); // reset
+    runPass(source, /* collectLabelsOnly */ true);
+
+    // Pass 2: emit code with full label knowledge
+    m_iset.setPC(0);
+    m_code.clear();
+    runPass(source, /* collectLabelsOnly */ false);
+
+    writeOutput();
+}
+
+/* 1 pass assembler - cant do forward lookups
+*    void assemble(const std::string& source)
+*    {
+*        std::istringstream stream(source);
+*        std::string line;
+*        int lineNum = 0;
+*
+*        while (std::getline(stream, line))
+*        {
+*            lineNum++;
+*            processLine(line, lineNum);
+*        }
+*
+*        writeOutput();
+*    }
+*/
+
+
 
 private:
     IInstructionSet& m_iset;
