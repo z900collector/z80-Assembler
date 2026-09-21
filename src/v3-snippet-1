@@ -28,30 +28,36 @@ class IInstructionSet
 public:
     virtual ~IInstructionSet() = default;
 
+    // Assemble a single instruction; returns encoded bytes.
+    // Throws std::runtime_error on unknown mnemonic/operand.
     virtual std::vector<unsigned char>
     assemble(const std::string& mnemonic, const std::string& operand) = 0;
 
+    // Parse an immediate value (hex, decimal, etc.)
     virtual int parseImmediate(const std::string& s) = 0;
+
+    // Check whether a token is a label reference (for branch targets)
     virtual bool isLabelRef(const std::string& token) = 0;
+
+    // Resolve a label to an absolute address
     virtual int resolveLabel(const std::string& name) = 0;
+
+    // Set the current program counter (called by the assembler engine)
     virtual void setPC(int pc) = 0;
+
+    // Current program counter
     virtual int getPC() const = 0;
+
+    // Advance PC by n bytes
     virtual void advancePC(int n) = 0;
+
+    // Register a label at the current PC
     virtual void defineLabel(const std::string& name) = 0;
+
+    // Check if a label is defined
     virtual bool hasLabel(const std::string& name) const = 0;
+};
 
-    // ── New methods for two-pass ────────────────────────────────────────────
-
-    // Clear all labels and reset PC to the default origin
-    virtual void reset() = 0;
-
-    // Reset PC only (labels are preserved)
-    virtual void resetPC() = 0;
-
-    // Return the encoded byte count for an instruction
-    // without resolving any labels.
-    virtual int instructionSize(const std::string& mnemonic, const std::string& operand) = 0;
-};   
 /* ───────────────────────────────────────────────
  *
  * Generic Assembler Engine
@@ -72,106 +78,122 @@ public:
         m_outputPath = path;
     }
 
-    void assemble(const std::string& source)
+void runPass(const std::string& source, bool collectLabelsOnly)
+{
+    std::istringstream stream(source);
+    std::string line;
+
+    while (std::getline(stream, line))
     {
-        // Pass 1: collect all labels
-        m_iset.reset();
-        runPass(source, /* collectLabelsOnly */ true);
+        // ... same parsing as before ...
 
-        // Pass 2: emit code with full label knowledge
-        m_iset.resetPC();
-        m_code.clear();
-        runPass(source, /* collectLabelsOnly */ false);
-
-        writeOutput();
+        if (collectLabelsOnly)
+        {
+            // Just advance PC by the instruction size, don't store bytes
+            // and don't resolve labels (they may not be defined yet)
+            // You need the instruction set to report size without resolving
+        }
+        else
+        {
+            // Full assembly: emit bytes, resolve labels
+        }
     }
+}
+
+
+
+void assemble(const std::string& source)
+{
+    // Pass 1: collect all labels
+    m_iset.setPC(0); // reset
+    runPass(source, /* collectLabelsOnly */ true);
+
+    // Pass 2: emit code with full label knowledge
+    m_iset.setPC(0);
+    m_code.clear();
+    runPass(source, /* collectLabelsOnly */ false);
+
+    writeOutput();
+}
+
+/* 1 pass assembler - cant do forward lookups
+*    void assemble(const std::string& source)
+*    {
+*        std::istringstream stream(source);
+*        std::string line;
+*        int lineNum = 0;
+*
+*        while (std::getline(stream, line))
+*        {
+*            lineNum++;
+*            processLine(line, lineNum);
+*        }
+*
+*        writeOutput();
+*    }
+*/
+
+
 
 private:
     IInstructionSet& m_iset;
     std::string m_outputPath;
     std::vector<unsigned char> m_code;
 
-    void runPass(const std::string& source, bool collectLabelsOnly)
+    void processLine(const std::string& rawLine, int lineNum)
     {
-        std::istringstream stream(source);
-        std::string line;
-        int lineNum = 0;
-
-        while (std::getline(stream, line))
+        // Strip comments
+        std::string line = rawLine;
+        size_t commentPos = line.find(';');
+        if (commentPos != std::string::npos)
         {
-            lineNum++;
+            line = line.substr(0, commentPos);
+        }
 
-            // Strip comments
-            size_t commentPos = line.find(';');
-            if (commentPos != std::string::npos)
-            {
-                line = line.substr(0, commentPos);
-            }
+        line = trim(line);
+        if (line.empty())
+        {
+            return;
+        }
 
-            line = trim(line);
-            if (line.empty())
+        // Check for labels
+        std::string rest = line;
+        size_t colonPos = line.find(':');
+        if (colonPos != std::string::npos)
+        {
+            std::string label = trim(line.substr(0, colonPos));
+            m_iset.defineLabel(label);
+            rest = trim(line.substr(colonPos + 1));
+            if (rest.empty())
             {
-                continue;
+                return;
             }
+        }
 
-            // Handle labels
-            std::string rest = line;
-            size_t colonPos = line.find(':');
-            if (colonPos != std::string::npos)
-            {
-                std::string label = trim(line.substr(0, colonPos));
-                m_iset.defineLabel(label);
-                rest = trim(line.substr(colonPos + 1));
-                if (rest.empty())
-                {
-                    continue;
-                }
-            }
+        // Split mnemonic and operand
+        std::string mnemonic, operand;
+        size_t spacePos = rest.find_first_of(" \t");
+        if (spacePos == std::string::npos)
+        {
+            mnemonic = toUpper(rest);
+            operand = "";
+        }
+        else
+        {
+            mnemonic = toUpper(trim(rest.substr(0, spacePos)));
+            operand = trim(rest.substr(spacePos + 1));
+        }
 
-            // Split mnemonic and operand
-            std::string mnemonic, operand;
-            size_t spacePos = rest.find_first_of(" \t");
-            if (spacePos == std::string::npos)
-            {
-                mnemonic = toUpper(rest);
-                operand = "";
-            }
-            else
-            {
-                mnemonic = toUpper(trim(rest.substr(0, spacePos)));
-                operand = trim(rest.substr(spacePos + 1));
-            }
-
-            // Skip pseudo-ops that don't produce code (ORG)
-            if (mnemonic == "ORG")
-            {
-                // In pass 1, we still need to set PC
-                m_iset.setPC(m_iset.parseImmediate(operand));
-                continue;
-            }
-
-            if (collectLabelsOnly)
-            {
-                // Pass 1: just advance PC by the instruction size
-                int size = m_iset.instructionSize(mnemonic, operand);
-                m_iset.advancePC(size);
-            }
-            else
-            {
-                // Pass 2: full assembly
-                try
-                {
-                    std::vector<unsigned char> bytes =
-                        m_iset.assemble(mnemonic, operand);
-                    m_code.insert(m_code.end(), bytes.begin(), bytes.end());
-                    m_iset.advancePC(static_cast<int>(bytes.size()));
-                }
-                catch (const std::runtime_error& e)
-                {
-                    std::cerr << "Error at line " << lineNum
-                              << ": " << e.what() << "\n";
-                }
-            }
+        // Delegate to instruction set
+        try
+        {
+            std::vector<unsigned char> bytes = m_iset.assemble(mnemonic, operand);
+            m_code.insert(m_code.end(), bytes.begin(), bytes.end());
+            m_iset.advancePC(static_cast<int>(bytes.size()));
+        }
+        catch (const std::runtime_error& e)
+        {
+            std::cerr << "Error at line " << lineNum << ": " << e.what() << "\n";
         }
     }
 
@@ -203,11 +225,7 @@ private:
         std::transform(result.begin(), result.end(), result.begin(), ::toupper);
         return result;
     }
-};   
-
-
-
-
+};
 
 // ─── Z80 Instruction Set Implementation ─────────────────────────────────────
 
@@ -218,121 +236,6 @@ public:
         : m_pc(0x8000)
     {
     }
-
-
-
-void reset() override
-{
-    m_labels.clear();
-    m_pc = 0x8000;
-}
-
-void resetPC() override
-{
-    m_pc = 0x8000;
-}
-
-int instructionSize(const std::string& mnem, const std::string& op) override
-{
-    // ── Pseudo-ops ──────────────────────────────────────────────────────────
-    if (mnem == "ORG") return 0;
-
-    if (mnem == "DB")
-    {
-        std::istringstream iss(op);
-        std::string token;
-        int count = 0;
-        while (iss >> token) count++;
-        return count;
-    }
-
-    if (mnem == "DW")
-    {
-        std::istringstream iss(op);
-        std::string token;
-        int count = 0;
-        while (iss >> token) count++;
-        return count * 2;
-    }
-
-    if (mnem == "DS")
-    {
-        return parseImmediate(op);
-    }
-
-    // ── 3-byte: JP, CALL, LD 16-bit,nn, LD (nn),A, LD A,(nn) ───────────────
-    if (mnem == "JP" || mnem == "CALL") return 3;
-
-    if (mnem == "LD")
-    {
-        if (op.find(',') != std::string::npos)
-        {
-            size_t comma = op.find(',');
-            std::string dst = toUpper(trim(op.substr(0, comma)));
-            std::string src = toUpper(trim(op.substr(comma + 1)));
-
-            // LD (nn),A / LD A,(nn)
-            if ((dst == "A" && src[0] == '(') ||
-                (dst[0] == '(' && src == "A"))
-            {
-                // Check if it's (nn) not (HL)/(BC)/(DE)
-                if (src != "(HL)" && src != "(BC)" && src != "(DE)" &&
-                    dst != "(HL)" && dst != "(BC)" && dst != "(DE)")
-                {
-                    return 3;
-                }
-            }
-
-            // LD 16-bit, nn
-            if (isReg16(dst) && !isReg16(src) &&
-                src.find('(') == std::string::npos)
-            {
-                return 3;
-            }
-        }
-        return 1; // default: reg→reg, (HL),A, etc.
-    }
-
-    // ── 2-byte: JR, DJNZ, LD r,n, LD (HL),n, CB-prefixed, IN/OUT (n) ───────
-    if (mnem == "JR" || mnem == "DJNZ") return 2;
-
-    if (mnem == "LD" && op.find(',') != std::string::npos)
-    {
-        size_t comma = op.find(',');
-        std::string dst = toUpper(trim(op.substr(0, comma)));
-        std::string src = toUpper(trim(op.substr(comma + 1)));
-
-        // LD r, n  (8-bit reg, immediate)
-        if (isReg8(dst) && !isReg8(src) && src.find('(') == std::string::npos)
-        {
-            return 2;
-        }
-        // LD (HL), n
-        if (dst == "(HL)" && src.find('(') == std::string::npos)
-        {
-            return 2;
-        }
-    }
-
-    if (mnem == "IN" || mnem == "OUT")
-    {
-        if (op.find(',') == std::string::npos) return 2;
-        return 1; // IN (C) / OUT (C),A
-    }
-
-    // CB-prefixed: RLC, RRC, RL, RR, SLA, SRA, SRL, BIT, SET, RES
-    if (mnem == "RLC" || mnem == "RRC" || mnem == "RL" || mnem == "RR" ||
-        mnem == "SLA" || mnem == "SRA" || mnem == "SRL" ||
-        mnem == "BIT" || mnem == "SET" || mnem == "RES")
-    {
-        return 2;
-    }
-
-    // ── 1-byte: everything else ─────────────────────────────────────────────
-    return 1;
-}   
-
-
 
     int parseImmediate(const std::string& s) override
     {
