@@ -1,3 +1,13 @@
+/*
+ * z80 Assembler V3 using basic C++
+ *
+ * Compile cc file using:
+ *
+ * g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g asm-v3.cc -o asm-v3
+ *
+ * Partly AI generated, manually edited and updated: S Young 2026
+ */
+
 #include <iostream>
 #include <fstream>
 #include <string>
