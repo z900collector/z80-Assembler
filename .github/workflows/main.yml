@@ -1,16 +1,29 @@
-name: CI
+name: C++ Assembler CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Build Project
-        uses: ./actions/custom-cpp-build
-        with:
-          source-file: './src/asm-v3.cc'
-          output-file: './src/asm-v3'
-          compiler-flags: '-std=c++17 -Wall -Wextra -pedantic'   
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y g++
+
+      - name: Compile
+        run: |
+          g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g \
+              src/Assembler.cpp src/IInstructionSet.h src/Z80InstructionSet.cpp src/asm-v3.cpp \
+              -o assembler
+
+      - name: Test Z80
+        run: |
+          ./assembler test-files/test-call-ret.asm out_z80.bin
+          xxd out_z80.bin
