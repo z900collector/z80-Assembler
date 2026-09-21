@@ -21,8 +21,9 @@ runs:
       run: |
         echo "Compiling ${{ inputs.source-file }}"
         g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g \
-            ${{ inputs.source-dir }}/assembler.cpp \
-            ${{ inputs.source-dir }}/z80_iset.cpp \
-            ${{ inputs.source-dir }}/mos6502_iset.cpp \
+            ${{ inputs.source-dir }}/Assembler.cpp \
+            ${{ inputs.source-dir }}/IInstructionSet.h \
+            ${{ inputs.source-dir }}/Z80InstructionSet.cpp \
+            ${{ inputs.source-dir }}/asm-v3.cpp \
             -o ${{ inputs.output-name }}
         echo "Build successful!"   
