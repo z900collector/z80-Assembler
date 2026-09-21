@@ -1,6 +1,6 @@
 # Building Source Code
 
-[![CI](https://github.com/z900collector/z80-Assembler/actions/workflows/ci.yml/badge.svg)](https://github.com/z900collector/z80-Assembler/actions/workflows/ci.yml)   
+[![C++ Assembler CI](https://github.com/z900collector/z80-Assembler/actions/workflows/main.yml/badge.svg)](https://github.com/z900collector/z80-Assembler/actions/workflows/main.yml)
 
 The z80 Assembler is a basic C++ program that uses simple objects to parse a z80 assmbly language source file and output a bin file.
 

@@ -1,6 +1,6 @@
 # z80-ASM
 
-[![CI](https://github.com/z900collector/z80-Assembler/actions/workflows/main.yml/badge.svg)](https://github.com/z900collector/z80-Assembler/actions/workflows/main.yml)
+[![C++ Assembler CI](https://github.com/z900collector/z80-Assembler/actions/workflows/main.yml/badge.svg)](https://github.com/z900collector/z80-Assembler/actions/workflows/main.yml)
 
 The z80 assembler is a C++ program designed to have a replacable instruction set.
 
