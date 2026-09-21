@@ -11,6 +11,6 @@ jobs:
       - name: Build Project
         uses: ./actions/custom-cpp-build
         with:
-          source-file: 'asm-v3.cc'
-          output-file: 'asm-v3'
+          source-file: 'src/asm-v3.cc'
+          output-file: 'src/asm-v3'
           compiler-flags: '-std=c++17 -Wall -Wextra -pedantic'   
