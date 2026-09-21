@@ -20,5 +20,9 @@ runs:
       shell: bash
       run: |
         echo "Compiling ${{ inputs.source-file }}"
-        g++ ${{ inputs.compiler-flags }} ${{ inputs.source-file }} -o ${{ inputs.output-file }}
+        g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g \
+            ${{ inputs.source-dir }}/assembler.cpp \
+            ${{ inputs.source-dir }}/z80_iset.cpp \
+            ${{ inputs.source-dir }}/mos6502_iset.cpp \
+            -o ${{ inputs.output-name }}
         echo "Build successful!"   
