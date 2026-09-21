@@ -20,5 +20,10 @@ runs:
       shell: bash
       run: |
         echo "Compiling ${{ inputs.source-file }}"
-        g++ ${{ inputs.compiler-flags }} ${{ inputs.source-file }} -o ${{ inputs.output-file }}
+        g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g \
+            ${{ inputs.source-dir }}/Assembler.cpp \
+            ${{ inputs.source-dir }}/IInstructionSet.h \
+            ${{ inputs.source-dir }}/Z80InstructionSet.cpp \
+            ${{ inputs.source-dir }}/asm-v3.cpp \
+            -o ${{ inputs.output-name }}
         echo "Build successful!"   
