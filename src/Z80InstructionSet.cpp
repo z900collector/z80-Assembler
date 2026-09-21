@@ -10,6 +10,9 @@
  *
  */
 
+#include "Z80InstructionSet.h"
+
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -21,218 +24,26 @@
 #include <algorithm>
 #include <functional>
 
-// ─── Abstract Instruction Set Interface ─────────────────────────────────────
 
-class IInstructionSet
+
+Z80InstructionSet::Z80InstructionSet(): m_pc(0x0000)
 {
-public:
-    virtual ~IInstructionSet() = default;
-
-    virtual std::vector<unsigned char>
-    assemble(const std::string& mnemonic, const std::string& operand) = 0;
-
-    virtual int parseImmediate(const std::string& s) = 0;
-    virtual bool isLabelRef(const std::string& token) = 0;
-    virtual int resolveLabel(const std::string& name) = 0;
-    virtual void setPC(int pc) = 0;
-    virtual int getPC() const = 0;
-    virtual void advancePC(int n) = 0;
-    virtual void defineLabel(const std::string& name) = 0;
-    virtual bool hasLabel(const std::string& name) const = 0;
-
-    // ── New methods for two-pass ────────────────────────────────────────────
-
-    // Clear all labels and reset PC to the default origin
-    virtual void reset() = 0;
-
-    // Reset PC only (labels are preserved)
-    virtual void resetPC() = 0;
-
-    // Return the encoded byte count for an instruction
-    // without resolving any labels.
-    virtual int instructionSize(const std::string& mnemonic, const std::string& operand) = 0;
-};   
-/* ───────────────────────────────────────────────
- *
- * Generic Assembler Engine
- *
- * ───────────────────────────────────────────────
- */
-
-class Assembler
-{
-public:
-    explicit Assembler(IInstructionSet& iset)
-        : m_iset(iset)
-    {
-    }
-
-    void setOutputFile(const std::string& path)
-    {
-        m_outputPath = path;
-    }
-
-    void assemble(const std::string& source)
-    {
-        // Pass 1: collect all labels
-        m_iset.reset();
-        runPass(source, /* collectLabelsOnly */ true);
-
-        // Pass 2: emit code with full label knowledge
-        m_iset.resetPC();
-        m_code.clear();
-        runPass(source, /* collectLabelsOnly */ false);
-
-        writeOutput();
-    }
-
-private:
-    IInstructionSet& m_iset;
-    std::string m_outputPath;
-    std::vector<unsigned char> m_code;
-
-    void runPass(const std::string& source, bool collectLabelsOnly)
-    {
-        std::istringstream stream(source);
-        std::string line;
-        int lineNum = 0;
-
-        while (std::getline(stream, line))
-        {
-            lineNum++;
-
-            // Strip comments
-            size_t commentPos = line.find(';');
-            if (commentPos != std::string::npos)
-            {
-                line = line.substr(0, commentPos);
-            }
-
-            line = trim(line);
-            if (line.empty())
-            {
-                continue;
-            }
-
-            // Handle labels
-            std::string rest = line;
-            size_t colonPos = line.find(':');
-            if (colonPos != std::string::npos)
-            {
-                std::string label = trim(line.substr(0, colonPos));
-                m_iset.defineLabel(label);
-                rest = trim(line.substr(colonPos + 1));
-                if (rest.empty())
-                {
-                    continue;
-                }
-            }
-
-            // Split mnemonic and operand
-            std::string mnemonic, operand;
-            size_t spacePos = rest.find_first_of(" \t");
-            if (spacePos == std::string::npos)
-            {
-                mnemonic = toUpper(rest);
-                operand = "";
-            }
-            else
-            {
-                mnemonic = toUpper(trim(rest.substr(0, spacePos)));
-                operand = trim(rest.substr(spacePos + 1));
-            }
-
-            // Skip pseudo-ops that don't produce code (ORG)
-            if (mnemonic == "ORG")
-            {
-                // In pass 1, we still need to set PC
-                m_iset.setPC(m_iset.parseImmediate(operand));
-                continue;
-            }
-
-            if (collectLabelsOnly)
-            {
-                // Pass 1: just advance PC by the instruction size
-                int size = m_iset.instructionSize(mnemonic, operand);
-                m_iset.advancePC(size);
-            }
-            else
-            {
-                // Pass 2: full assembly
-                try
-                {
-                    std::vector<unsigned char> bytes =
-                        m_iset.assemble(mnemonic, operand);
-                    m_code.insert(m_code.end(), bytes.begin(), bytes.end());
-                    m_iset.advancePC(static_cast<int>(bytes.size()));
-                }
-                catch (const std::runtime_error& e)
-                {
-                    std::cerr << "Error at line " << lineNum
-                              << ": " << e.what() << "\n";
-                }
-            }
-        }
-    }
-
-    void writeOutput()
-    {
-        std::ofstream out(m_outputPath, std::ios::binary);
-        if (!out)
-        {
-            throw std::runtime_error("Cannot open output file: " + m_outputPath);
-        }
-        out.write(reinterpret_cast<const char*>(m_code.data()), m_code.size());
-        out.close();
-
-        std::cout << "Assembled " << m_code.size() << " bytes to "
-                  << m_outputPath << "\n";
-    }
-
-    static std::string trim(const std::string& s)
-    {
-        size_t start = s.find_first_not_of(" \t");
-        if (start == std::string::npos) return "";
-        size_t end = s.find_last_not_of(" \t");
-        return s.substr(start, end - start + 1);
-    }
-
-    static std::string toUpper(const std::string& s)
-    {
-        std::string result = s;
-        std::transform(result.begin(), result.end(), result.begin(), ::toupper);
-        return result;
-    }
-};   
+}
 
 
 
-
-
-// ─── Z80 Instruction Set Implementation ─────────────────────────────────────
-
-class Z80InstructionSet : public IInstructionSet
-{
-public:
-    Z80InstructionSet()
-        : m_pc(0x8000)
-    {
-    }
-
-
-
-void reset() override
+void Z80InstructionSet::reset()
 {
     m_labels.clear();
-    m_pc = 0x8000;
+    m_pc = 0x0000;
 }
 
-void resetPC() override
+void Z80InstructionSet::resetPC()
 {
-    m_pc = 0x8000;
+    m_pc = 0x0000;
 }
 
-int instructionSize(const std::string& mnem, const std::string& op) override
+int Z80InstructionSet::instructionSize(const std::string& mnem, const std::string& op)
 {
     // ── Pseudo-ops ──────────────────────────────────────────────────────────
     if (mnem == "ORG") return 0;
@@ -334,7 +145,7 @@ int instructionSize(const std::string& mnem, const std::string& op) override
 
 
 
-    int parseImmediate(const std::string& s) override
+int Z80InstructionSet::parseImmediate(const std::string& s)
     {
         if (s.size() >= 2 && (s[0] == '$' ||
             (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))))
@@ -344,16 +155,16 @@ int instructionSize(const std::string& mnem, const std::string& op) override
         return std::stoi(s, nullptr, 10);
     }
 
-    bool isLabelRef(const std::string& token) override
+bool Z80InstructionSet::isLabelRef(const std::string& token)
     {
         // A label ref is alphabetic (not a number or hex)
         if (token.empty()) return false;
         if (token[0] >= '0' && token[0] <= '9') return false;
         if (token[0] == '$') return false;
         return true;
-    }
+}
 
-    int resolveLabel(const std::string& name) override
+int Z80InstructionSet::resolveLabel(const std::string& name)
     {
         std::string upper = toUpper(name);
         auto it = m_labels.find(upper);
@@ -364,22 +175,34 @@ int instructionSize(const std::string& mnem, const std::string& op) override
         return it->second;
     }
 
-    void setPC(int pc) override { m_pc = pc; }
-    int getPC() const override { return m_pc; }
-    void advancePC(int n) override { m_pc += n; }
+    void Z80InstructionSet::setPC(int pc) { m_pc = pc; }
 
-    void defineLabel(const std::string& name) override
+
+
+    int Z80InstructionSet::getPC() const { return m_pc; }
+
+
+
+    void Z80InstructionSet::advancePC(int n) { m_pc += n; }
+
+
+
+
+    void Z80InstructionSet::defineLabel(const std::string& name)
     {
         m_labels[toUpper(name)] = m_pc;
     }
 
-    bool hasLabel(const std::string& name) const override
-    {
-        return m_labels.count(toUpper(name)) > 0;
-    }
 
-    std::vector<unsigned char>
-    assemble(const std::string& mnem, const std::string& op) override
+
+
+bool Z80InstructionSet::hasLabel(const std::string& name) const
+{
+	return m_labels.count(toUpper(name)) > 0;
+}
+
+
+std::vector<unsigned char> Z80InstructionSet::assemble(const std::string& mnem, const std::string& op)
     {
         // ── Pseudo-ops ──────────────────────────────────────────────────────
         if (mnem == "ORG")
@@ -527,16 +350,8 @@ int instructionSize(const std::string& mnem, const std::string& op) override
         throw std::runtime_error("Unknown mnemonic: " + mnem);
     }
 
-private:
-    int m_pc;
-    std::map<std::string, int> m_labels;
 
-    // ── Register helpers ────────────────────────────────────────────────────
-
-    enum class Reg8 { B, C, D, E, H, L, A, F };
-    enum class Reg16 { BC, DE, HL, SP, AF, IX, IY };
-
-    Reg8 parseReg8(const std::string& s)
+    Z80InstructionSet::Reg8 Z80InstructionSet::parseReg8(const std::string& s)
     {
         std::string u = toUpper(s);
         if (u == "B") return Reg8::B;
@@ -550,12 +365,12 @@ private:
         throw std::runtime_error("Unknown 8-bit register: " + s);
     }
 
-    int reg8Index(Reg8 r)
+    int Z80InstructionSet::reg8Index(Reg8 r)
     {
         return static_cast<int>(r);
     }
 
-    Reg16 parseReg16(const std::string& s)
+    Z80InstructionSet::Reg16 Z80InstructionSet::parseReg16(const std::string& s)
     {
         std::string u = toUpper(s);
         if (u == "BC") return Reg16::BC;
@@ -568,19 +383,19 @@ private:
         throw std::runtime_error("Unknown 16-bit register: " + s);
     }
 
-    int reg16Index(Reg16 r)
+    int Z80InstructionSet::reg16Index(Reg16 r)
     {
         return static_cast<int>(r);
     }
 
-    bool isReg8(const std::string& s)
+    bool Z80InstructionSet::isReg8(const std::string& s)
     {
         std::string u = toUpper(s);
         return u == "A" || u == "B" || u == "C" || u == "D" ||
                u == "E" || u == "H" || u == "L" || u == "F";
     }
 
-    bool isReg16(const std::string& s)
+    bool Z80InstructionSet::isReg16(const std::string& s)
     {
         std::string u = toUpper(s);
         return u == "BC" || u == "DE" || u == "HL" ||
@@ -589,7 +404,7 @@ private:
 
     // ── Instruction assemblers ──────────────────────────────────────────────
 
-    std::vector<unsigned char> assembleLD(const std::string& op)
+    std::vector<unsigned char> Z80InstructionSet::assembleLD(const std::string& op)
     {
         if (op.find(',') != std::string::npos)
         {
@@ -656,7 +471,7 @@ private:
         }
     }
 
-    std::vector<unsigned char> assembleALU(const std::string& mnem, const std::string& op)
+    std::vector<unsigned char> Z80InstructionSet::assembleALU(const std::string& mnem, const std::string& op)
     {
         // ADD HL, rr
         if (mnem == "ADD" && isReg16(op.substr(0, 2)) && op.find(',') != std::string::npos)
@@ -697,7 +512,7 @@ private:
         return {immOpcode, static_cast<unsigned char>(val)};
     }
 
-    std::vector<unsigned char> assembleIncDec(const std::string& mnem, const std::string& op)
+    std::vector<unsigned char> Z80InstructionSet::assembleIncDec(const std::string& mnem, const std::string& op)
     {
         std::string upper = toUpper(op);
 
@@ -723,7 +538,7 @@ private:
         throw std::runtime_error("Unsupported INC/DEC operand: " + op);
     }
 
-    std::vector<unsigned char> assembleRotate(const std::string& mnem, const std::string& op)
+    std::vector<unsigned char> Z80InstructionSet::assembleRotate(const std::string& mnem, const std::string& op)
     {
         int bit = 0;
         if (mnem == "RLC") bit = 0;
@@ -752,7 +567,7 @@ private:
         return {0xCB, static_cast<unsigned char>((bit << 3) + regIdx)};
     }
 
-    std::vector<unsigned char> assembleBit(const std::string& mnem, const std::string& op)
+    std::vector<unsigned char> Z80InstructionSet::assembleBit(const std::string& mnem, const std::string& op)
     {
         size_t comma = op.find(',');
         int bitNum = parseImmediate(trim(op.substr(0, comma)));
@@ -780,69 +595,39 @@ private:
         return {0xCB, subOp};
     }
 
-    // ── Utility ─────────────────────────────────────────────────────────────
+/*
+ * Utility Classes
+ */
 
-    static std::string trim(const std::string& s)
-    {
-        size_t start = s.find_first_not_of(" \t");
-        if (start == std::string::npos) return "";
-        size_t end = s.find_last_not_of(" \t");
-        return s.substr(start, end - start + 1);
-    }
 
-    static std::string toUpper(const std::string& s)
-    {
-        std::string r = s;
-        std::transform(r.begin(), r.end(), r.begin(), ::toupper);
-        return r;
-    }
 
-    static std::string removeParens(const std::string& s)
-    {
-        std::string r = s;
-        r.erase(std::remove(r.begin(), r.end(), '('), r.end());
-        r.erase(std::remove(r.begin(), r.end(), ')'), r.end());
-        return trim(r);
-    }
-};
-
-// ─── Main ────────────────────────────────────────────────────────────────────
-
-int main(int argc, char* argv[])
+std::string Z80InstructionSet::trim(const std::string& s)
 {
-    if (argc < 2)
-    {
-        std::cerr << "Usage: " << argv[0] << " <input.asm> [output.bin]\n";
-        return 1;
-    }
+	size_t start = s.find_first_not_of(" \t");
+	if (start == std::string::npos) return "";
+	size_t end = s.find_last_not_of(" \t");
+	return s.substr(start, end - start + 1);
+}
 
-    std::string inputFile = argv[1];
-    std::string outputFile = (argc >= 3) ? argv[2] : "output.bin";
 
-    std::ifstream in(inputFile);
-    if (!in)
-    {
-        std::cerr << "Cannot open input file: " << inputFile << "\n";
-        return 1;
-    }
 
-    std::stringstream buffer;
-    buffer << in.rdbuf();
-    std::string source = buffer.str();
 
-    Z80InstructionSet z80;
-    Assembler assembler(z80);
-    assembler.setOutputFile(outputFile);
 
-    try
-    {
-        assembler.assemble(source);
-    }
-    catch (const std::runtime_error& e)
-    {
-        std::cerr << "Assembly error: " << e.what() << "\n";
-        return 1;
-    }
+std::string Z80InstructionSet::toUpper(const std::string& s)
+{
+	std::string r = s;
+	std::transform(r.begin(), r.end(), r.begin(), ::toupper);
+	return r;
+}
 
-    return 0;
-}   
+
+
+
+std::string Z80InstructionSet::removeParens(const std::string& s)
+{
+	std::string r = s;
+	r.erase(std::remove(r.begin(), r.end(), '('), r.end());
+	r.erase(std::remove(r.begin(), r.end(), ')'), r.end());
+	return trim(r);
+}
+// End of file

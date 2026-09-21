@@ -6,11 +6,13 @@
 #include <stdexcept>
 #include <algorithm>
 
+#include "IInstructionSet.h"
+#include "MOS6502InstructionSet.h"
+
 class MOS6502InstructionSet : public IInstructionSet
 {
 public:
-    MOS6502InstructionSet()
-        : m_pc(0x0000)
+    MOS6502InstructionSet() : m_pc(0x0000)
     {
     }
 
