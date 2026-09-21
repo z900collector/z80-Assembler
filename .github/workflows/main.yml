@@ -1,0 +1,16 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Project
+        uses: ./actions/custom-cpp-build
+        with:
+          source-file: 'asm-v3.cc'
+          output-file: 'asm-v3'
+          compiler-flags: '-std=c++17 -Wall -Wextra -pedantic'   
