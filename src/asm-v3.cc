@@ -6,6 +6,8 @@
  * g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g asm-v3.cc -o asm-v3
  *
  * Partly AI generated, manually edited and updated: S Young 2026
+ * GITHUB Workflow added to project
+ *
  */
 
 #include <iostream>
@@ -571,7 +573,7 @@ private:
 
         if (upper == "(HL)")
         {
-            return {(mnem == "INC") ? 0x34 : 0x35};
+            return {static_cast<unsigned char>((mnem == "INC") ? 0x34 : 0x35)};
         }
 
         throw std::runtime_error("Unsupported INC/DEC operand: " + op);
