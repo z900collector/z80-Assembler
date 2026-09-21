@@ -25,5 +25,5 @@ jobs:
 
       - name: Test Z80
         run: |
-          ./assembler ../test-files/test-call-ret.asm out_z80.bin
+          ./assembler test-files/test-call-ret.asm out_z80.bin
           xxd out_z80.bin
