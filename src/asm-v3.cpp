@@ -13,6 +13,7 @@
 #include "IInstructionSet.h"
 #include "Assembler.h"
 #include "Z80InstructionSet.h"
+#include "MOS6502InstructionSet.h"
 
 
 #include <iostream>
@@ -25,21 +26,37 @@
 #include <stdexcept>
 #include <algorithm>
 #include <functional>
-
-
-
-// ─── Main ────────────────────────────────────────────────────────────────────
+#include <memory>
 
 int main(int argc, char* argv[])
 {
     if (argc < 2)
     {
-        std::cerr << "Usage: " << argv[0] << " <input.asm> [output.bin]\n";
+        std::cerr << "Usage: " << argv[0] << " <input.asm> [output.bin] [--6502]\n";
         return 1;
     }
 
     std::string inputFile = argv[1];
-    std::string outputFile = (argc >= 3) ? argv[2] : "output.bin";
+    std::string outputFile = "output.bin";
+    bool is6502 = false;
+
+    // Parse arguments
+    for (int i = 2; i < argc; i++)
+    {
+        std::string arg = argv[i];
+        if (arg == "--6502")
+        {
+            is6502 = true;
+        }
+        else if (arg == "--z80")
+        {
+            is6502 = false;
+        }
+        else
+        {
+            outputFile = arg;
+        }
+    }
 
     std::ifstream in(inputFile);
     if (!in)
@@ -52,8 +69,18 @@ int main(int argc, char* argv[])
     buffer << in.rdbuf();
     std::string source = buffer.str();
 
-    Z80InstructionSet z80;
-    Assembler assembler(z80);
+    // Select instruction set
+    std::unique_ptr<IInstructionSet> iset;
+    if (is6502)
+    {
+        iset = std::make_unique<MOS6502InstructionSet>();
+    }
+    else
+    {
+        iset = std::make_unique<Z80InstructionSet>();
+    }
+
+    Assembler assembler(*iset);
     assembler.setOutputFile(outputFile);
 
     try

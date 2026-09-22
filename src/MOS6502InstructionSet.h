@@ -35,6 +35,12 @@ private:
     std::vector<unsigned char> assembleALU(const std::string& mnem, const std::string& op);
     std::vector<unsigned char> assembleShift(const std::string& mnem, const std::string& op);
     std::vector<unsigned char> assembleIncDec(const std::string& mnem, const std::string& op);
+    static std::string trim(const std::string& s);
+    static std::string toUpper(const std::string& s);
+    static std::string removeParens(const std::string& s);
+
+	static bool isHexAddr(const std::string& s);
+	int parseAddr(const std::string& s);
 };
 
 #endif   

@@ -6,27 +6,25 @@
 #include <stdexcept>
 #include <algorithm>
 
-#include "IInstructionSet.h"
 #include "MOS6502InstructionSet.h"
 
-class MOS6502InstructionSet : public IInstructionSet
+MOS6502InstructionSet::MOS6502InstructionSet() : m_pc(0x0000)
 {
-public:
-    MOS6502InstructionSet() : m_pc(0x0000)
-    {
-    }
+}
 
-    int parseImmediate(const std::string& s) override
-    {
+int MOS6502InstructionSet::parseImmediate(const std::string& s)
+{
         if (s.size() >= 2 && (s[0] == '$' ||
             (s[0] == '0' && (s[1] == 'x' || s[1] == 'X'))))
         {
             return std::stoi(s, nullptr, 16);
         }
         return std::stoi(s, nullptr, 10);
-    }
+}
 
-    bool isLabelRef(const std::string& token) override
+
+
+bool MOS6502InstructionSet::isLabelRef(const std::string& token)
     {
         if (token.empty()) return false;
         if (token[0] >= '0' && token[0] <= '9') return false;
@@ -34,7 +32,7 @@ public:
         return true;
     }
 
-    int resolveLabel(const std::string& name) override
+    int MOS6502InstructionSet::resolveLabel(const std::string& name)
     {
         std::string upper = toUpper(name);
         auto it = m_labels.find(upper);
@@ -45,32 +43,32 @@ public:
         return it->second;
     }
 
-    void setPC(int pc) override { m_pc = pc; }
-    int getPC() const override { return m_pc; }
-    void advancePC(int n) override { m_pc += n; }
+    void MOS6502InstructionSet::setPC(int pc) { m_pc = pc; }
+    int MOS6502InstructionSet::getPC() const { return m_pc; }
+    void MOS6502InstructionSet::advancePC(int n) { m_pc += n; }
 
-    void defineLabel(const std::string& name) override
+    void MOS6502InstructionSet::defineLabel(const std::string& name)
     {
         m_labels[toUpper(name)] = m_pc;
     }
 
-    bool hasLabel(const std::string& name) const override
+    bool MOS6502InstructionSet::hasLabel(const std::string& name) const
     {
         return m_labels.count(toUpper(name)) > 0;
     }
 
-    void reset() override
+    void MOS6502InstructionSet::reset()
     {
         m_labels.clear();
         m_pc = 0x0000;
     }
 
-    void resetPC() override
+    void MOS6502InstructionSet::resetPC()
     {
         m_pc = 0x0000;
     }
 
-    int instructionSize(const std::string& mnem, const std::string& op) override
+    int MOS6502InstructionSet::instructionSize(const std::string& mnem, const std::string& op)
     {
         if (mnem == "ORG") return 0;
 
@@ -169,7 +167,7 @@ public:
     }
 
     std::vector<unsigned char>
-    assemble(const std::string& mnem, const std::string& op) override
+    MOS6502InstructionSet::assemble(const std::string& mnem, const std::string& op)
     {
         // ── Pseudo-ops ──────────────────────────────────────────────────────
         if (mnem == "ORG")
@@ -303,13 +301,8 @@ public:
         throw std::runtime_error("Unknown mnemonic: " + mnem);
     }
 
-private:
-    int m_pc;
-    std::map<std::string, int> m_labels;
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
-
-    static std::string trim(const std::string& s)
+std::string MOS6502InstructionSet::trim(const std::string& s)
     {
         size_t start = s.find_first_not_of(" \t");
         if (start == std::string::npos) return "";
@@ -317,14 +310,14 @@ private:
         return s.substr(start, end - start + 1);
     }
 
-    static std::string toUpper(const std::string& s)
+std::string MOS6502InstructionSet::toUpper(const std::string& s)
     {
         std::string r = s;
         std::transform(r.begin(), r.end(), r.begin(), ::toupper);
         return r;
     }
 
-    static bool isHexAddr(const std::string& s)
+bool MOS6502InstructionSet::isHexAddr(const std::string& s)
     {
         if (s.empty()) return false;
         if (s[0] == '$') return true;
@@ -342,7 +335,7 @@ private:
     }
 
     // Parse an address from an operand string
-    int parseAddr(const std::string& s)
+    int MOS6502InstructionSet::parseAddr(const std::string& s)
     {
         std::string t = trim(s);
         if (t[0] == '#')
@@ -354,7 +347,7 @@ private:
 
     // ── Branch helper ───────────────────────────────────────────────────────
 
-    std::vector<unsigned char> branch(unsigned char opcode, const std::string& op)
+    std::vector<unsigned char> MOS6502InstructionSet::branch(unsigned char opcode, const std::string& op)
     {
         int target = resolveLabel(trim(op));
         int offset = target - (m_pc + 2);
@@ -371,7 +364,7 @@ private:
     // Registers: A=0, X=1, Y=2
     // Modes: IMM=0, ZP=1, ZPX=2, ABS=3, ABSX=4, ABSY=5, IND=6, ZPI=7, ABSYI=8
 
-    std::vector<unsigned char> assembleLoadStore(const std::string& mnem, const std::string& op)
+    std::vector<unsigned char> MOS6502InstructionSet::assembleLoadStore(const std::string& mnem, const std::string& op)
     {
         std::string upper = toUpper(trim(op));
         int reg = 0; // A
@@ -464,7 +457,7 @@ private:
         return result;
     }
 
-    unsigned char lookupLoadStore(int reg, bool isLoad, int mode)
+    unsigned char MOS6502InstructionSet::lookupLoadStore(int reg, bool isLoad, int mode)
     {
         // LDA opcodes
         if (reg == 0)
@@ -551,7 +544,7 @@ private:
 
     // ── ALU ─────────────────────────────────────────────────────────────────
 
-    std::vector<unsigned char> assembleALU(const std::string& mnem, const std::string& op)
+    std::vector<unsigned char> MOS6502InstructionSet::assembleALU(const std::string& mnem, const std::string& op)
     {
         std::string upper = toUpper(trim(op));
 
@@ -665,7 +658,7 @@ private:
 
     // ── Shift / Rotate ──────────────────────────────────────────────────────
 
-    std::vector<unsigned char> assembleShift(const std::string& mnem, const std::string& op)
+    std::vector<unsigned char> MOS6502InstructionSet::assembleShift(const std::string& mnem, const std::string& op)
     {
         std::string upper = toUpper(trim(op));
 
@@ -734,7 +727,7 @@ private:
 
     // ── INC / DEC ───────────────────────────────────────────────────────────
 
-    std::vector<unsigned char> assembleIncDec(const std::string& mnem, const std::string& op)
+    std::vector<unsigned char> MOS6502InstructionSet::assembleIncDec(const std::string& mnem, const std::string& op)
     {
         std::string upper = toUpper(trim(op));
 
@@ -776,5 +769,4 @@ private:
 
         return result;
     }
-};
 // End of File   
