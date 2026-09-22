@@ -547,46 +547,46 @@ bool MOS6502InstructionSet::isHexAddr(const std::string& s)
     std::vector<unsigned char> MOS6502InstructionSet::assembleALU(const std::string& mnem, const std::string& op)
     {
         std::string upper = toUpper(trim(op));
-
+	
         // Determine base opcodes
         unsigned char immOp = 0, zpOp = 0, zpxOp = 0,
-                       absOp = 0, absxOp = 0, absyOp = 0,
+                       absOp = 0, absyOp = 0,
                        zpiOp = 0, absyiOp = 0;
 
         if (mnem == "ADC")
         {
             immOp = 0x69; zpOp = 0x65; zpxOp = 0x75;
-            absOp = 0x6D; absxOp = 0x7D; absyOp = 0x79;
+            absOp = 0x6D; absyOp = 0x79;
             zpiOp = 0x61; absyiOp = 0x71;
         }
         else if (mnem == "SBC")
         {
             immOp = 0xE9; zpOp = 0xE5; zpxOp = 0xF5;
-            absOp = 0xED; absxOp = 0xFD; absyOp = 0xF9;
+            absOp = 0xED; absyOp = 0xF9;
             zpiOp = 0xE1; absyiOp = 0xF1;
         }
         else if (mnem == "AND")
         {
             immOp = 0x29; zpOp = 0x25; zpxOp = 0x35;
-            absOp = 0x2D; absxOp = 0x3D; absyOp = 0x39;
+            absOp = 0x2D; absyOp = 0x39;
             zpiOp = 0x21; absyiOp = 0x31;
         }
         else if (mnem == "ORA")
         {
             immOp = 0x09; zpOp = 0x05; zpxOp = 0x15;
-            absOp = 0x0D; absxOp = 0x1D; absyOp = 0x19;
+            absOp = 0x0D; absyOp = 0x19;
             zpiOp = 0x01; absyiOp = 0x11;
         }
         else if (mnem == "EOR")
         {
             immOp = 0x49; zpOp = 0x45; zpxOp = 0x55;
-            absOp = 0x4D; absxOp = 0x5D; absyOp = 0x59;
+            absOp = 0x4D; absyOp = 0x59;
             zpiOp = 0x41; absyiOp = 0x51;
         }
         else if (mnem == "CMP")
         {
             immOp = 0xC9; zpOp = 0xC5; zpxOp = 0xD5;
-            absOp = 0xCD; absxOp = 0xDD; absyOp = 0xD9;
+            absOp = 0xCD; absyOp = 0xD9;
             zpiOp = 0xC1; absyiOp = 0xD1;
         }
 
@@ -672,23 +672,23 @@ bool MOS6502InstructionSet::isHexAddr(const std::string& s)
         }
 
         // Memory forms (2 or 3 bytes)
-        unsigned char zpOp = 0, zpxOp = 0, absOp = 0, absxOp = 0;
+        unsigned char zpOp = 0, zpxOp = 0, absOp = 0; 
 
         if (mnem == "ASL")
         {
-            zpOp = 0x06; zpxOp = 0x16; absOp = 0x0E; absxOp = 0x1E;
+            zpOp = 0x06; zpxOp = 0x16; absOp = 0x0E; 
         }
         else if (mnem == "LSR")
         {
-            zpOp = 0x46; zpxOp = 0x56; absOp = 0x4E; absxOp = 0x5E;
+            zpOp = 0x46; zpxOp = 0x56; absOp = 0x4E;
         }
         else if (mnem == "ROL")
         {
-            zpOp = 0x26; zpxOp = 0x36; absOp = 0x2E; absxOp = 0x3E;
+            zpOp = 0x26; zpxOp = 0x36; absOp = 0x2E; 
         }
         else if (mnem == "ROR")
         {
-            zpOp = 0x66; zpxOp = 0x76; absOp = 0x6E; absxOp = 0x7E;
+            zpOp = 0x66; zpxOp = 0x76; absOp = 0x6E; 
         }
 
         std::string addrStr;
@@ -734,7 +734,6 @@ bool MOS6502InstructionSet::isHexAddr(const std::string& s)
         unsigned char zpOp = (mnem == "INC") ? 0xE6 : 0xC6;
         unsigned char zpxOp = (mnem == "INC") ? 0xF6 : 0xD6;
         unsigned char absOp = (mnem == "INC") ? 0xEE : 0xCE;
-        unsigned char absxOp = (mnem == "INC") ? 0xFE : 0xDE;
 
         std::string addrStr;
         unsigned char opcode;
