@@ -20,7 +20,7 @@ jobs:
       - name: Compile
         run: |
           g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g \
-              src/Assembler.cpp src/IInstructionSet.h src/Z80InstructionSet.cpp src/asm-v3.cpp \
+              src/Assembler.cpp src/IInstructionSet.h src/Z80InstructionSet.cpp src/MOS6502InstructionSet.cpp src/asm-v3.cpp \
               -o assembler
 
       - name: Test Z80
