@@ -6,7 +6,7 @@ The z80 Assembler is a basic C++ program that uses simple objects to parse a z80
 
 ## Compiling the code
 ```
-g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g asm-v3.cc -o asm-v3
+g++ -std=c++17 -Wall -Wextra -pedantic -Werror -g Assembler.cpp IInstructionSet.h Z80InstructionSet.cpp MOS6502InstructionSet.cpp  asm-v3.cpp  -o asm-v3
 ```
 
 ## Assembling a file
